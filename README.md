@@ -1,0 +1,2 @@
+# Air Quality Monitor Project
+ Currently building a portable air quality monitor using Metro M4 Grand Central board, Arduino IDE, and various sensors (PMSA003I, SCD-41, SGP30, BMP280). It measures particulate matter, CO₂, VOCs, humidity, temperature, and barometric pressure. Future phases include battery integration, 3D-printed case, and AI-based weather forecasting. Actively troubleshooting integration and sensor issues.

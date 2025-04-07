@@ -19,7 +19,7 @@ float prevTempF = 0.0;
 float prevHumidity = 0.0;
 
 void setup() {
-  Serial.begin(230400);
+  Serial.begin(115200);
   while (!Serial) delay(10);
 
   Serial.println("Initializing all sensors...");
@@ -105,7 +105,7 @@ void loop() {
     Serial.println(alt_ft, 2);
   } 
 
-  Serial.println("Version 10.1");
+  Serial.println("Version 0.10.2");
   Serial.println("------------------------------------");
 
   delay(3000);  // Read every 3 seconds

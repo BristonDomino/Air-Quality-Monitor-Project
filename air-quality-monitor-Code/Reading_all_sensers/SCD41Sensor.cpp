@@ -8,8 +8,7 @@ bool SCD41Sensor::begin() {
   uint16_t error;
   char errorMessage[256];
 
-  // Default I2C address is 0x62
-  scd4x.begin(Wire, 0x62);
+  scd4x.begin(Wire, 0x62); // Default I2C address
 
   // Stop previously started measurement
   error = scd4x.stopPeriodicMeasurement();
@@ -35,83 +34,86 @@ bool SCD41Sensor::begin() {
   return true;
 }
 
-bool SCD41Sensor::readMeasurement(uint16_t &co2, float &temperatureC, float &humidity) {
-  // 1) Check if we can do a fresh read based on timing
+// Helper to apply exponential smoothing
+float SCD41Sensor::smoothValue(float currentFiltered, float newRaw) {
+  return currentFiltered + alpha * (newRaw - currentFiltered);
+}
+
+bool SCD41Sensor::readMeasurement(uint16_t &co2_out, float &tempC_out, float &hum_out) {
   unsigned long now = millis();
   bool doFreshRead = (now - lastReadMs >= readInterval);
 
   if (doFreshRead) {
-    // Attempt a fresh read if enough time has elapsed
+    // Attempt a fresh read if enough time has passed
     uint16_t error;
     char errorMessage[256];
     bool dataReady = false;
 
-    // Query the sensor if new data is actually ready
     error = scd4x.getDataReadyStatus(dataReady);
     if (error) {
       Serial.print("Error reading data ready status: ");
       errorToString(error, errorMessage, sizeof(errorMessage));
       Serial.println(errorMessage);
-      // If we have never had a valid reading, fail. Else, return the last reading
       if (!haveLastReading) return false;
-      co2 = lastCO2;
-      temperatureC = lastTempC;
-      humidity = lastHumidity;
+      // fallback to filtered
+      co2_out    = (uint16_t)filteredCO2;
+      tempC_out  = filteredTempC;
+      hum_out    = filteredHumidity;
       return true;
     }
 
     if (dataReady) {
-      // We have fresh data on the sensor
-      error = scd4x.readMeasurement(co2, temperatureC, humidity);
+      uint16_t rawCO2;
+      float rawTempC, rawHum;
+
+      error = scd4x.readMeasurement(rawCO2, rawTempC, rawHum);
       if (error) {
         Serial.print("Error reading measurement: ");
         errorToString(error, errorMessage, sizeof(errorMessage));
         Serial.println(errorMessage);
-        // If never had a good reading, fail
         if (!haveLastReading) return false;
-        // Otherwise return the cached data
-        co2 = lastCO2;
-        temperatureC = lastTempC;
-        humidity = lastHumidity;
+        // fallback
+        co2_out    = (uint16_t)filteredCO2;
+        tempC_out  = filteredTempC;
+        hum_out    = filteredHumidity;
         return true;
       }
-      // Successfully read, update cache
-      lastCO2 = co2;
-      lastTempC = temperatureC;
-      lastHumidity = humidity;
-      haveLastReading = true;
-      lastReadMs = now; // Update timestamp
-    } else {
-      // The sensor isn't ready with new data
-      // Return the cached data if we have it
+      // We got fresh data, apply smoothing
       if (!haveLastReading) {
-        return false; 
+        // First reading: initialize filtered to raw
+        filteredCO2      = (float)rawCO2;
+        filteredTempC    = rawTempC;
+        filteredHumidity = rawHum;
+        haveLastReading  = true;
+      } else {
+        // Exponential smoothing
+        filteredCO2      = smoothValue(filteredCO2, (float)rawCO2);
+        filteredTempC    = smoothValue(filteredTempC, rawTempC);
+        filteredHumidity = smoothValue(filteredHumidity, rawHum);
       }
-      co2 = lastCO2;
-      temperatureC = lastTempC;
-      humidity = lastHumidity;
-      // Update timestamp anyway to avoid hammering the sensor again
+
+      lastReadMs = now;
+    } else {
+      // No new sensor data, do nothing special except update lastReadMs
       lastReadMs = now;
     }
-  } else {
-    // 2) We haven't reached our 5-second interval yet
-    // Return the cached data
-    if (!haveLastReading) {
-      // No reading yet to give
-      return false;
-    }
-    co2 = lastCO2;
-    temperatureC = lastTempC;
-    humidity = lastHumidity;
   }
 
+  // Return the (possibly updated) filtered data
+  if (!haveLastReading) {
+    return false; // never had a valid read
+  }
+  co2_out   = (uint16_t)filteredCO2;
+  tempC_out = filteredTempC;
+  hum_out   = filteredHumidity;
   return true;
 }
 
-bool SCD41Sensor::readMeasurementF(uint16_t &co2, float &temperatureC, float &temperatureF, float &humidity) {
-  if (!readMeasurement(co2, temperatureC, humidity)) {
+bool SCD41Sensor::readMeasurementF(uint16_t &co2_out, float &tempC_out, float &tempF_out, float &hum_out) {
+  if (!readMeasurement(co2_out, tempC_out, hum_out)) {
     return false;
   }
-  temperatureF = temperatureC * 9.0f / 5.0f + 32.0f;
+  // Convert the *filtered* Celsius to Fahrenheit
+  tempF_out = tempC_out * 9.0f / 5.0f + 32.0f;
   return true;
 }

@@ -11,13 +11,18 @@ private:
   // Helper to compute absolute humidity scaled for SGP30
   uint16_t computeAbsoluteHumidity(float temperatureC, float humidityPercent);
 
-  // NEW: caching and timing
+  // Caching, timing, and smoothing
   bool haveLastReading = false;
-  uint16_t lastVOC_ppb = 0;
-  float lastVOC_mg = 0.0f;
+  float filteredVOC_ppb = 0.0f;
+  float filteredVOC_mg  = 0.0f;
 
   unsigned long lastReadMs = 0;
   const unsigned long readInterval = 2000; // 2 seconds
+
+  // Smoothing factor. Adjust as needed.
+  const float alpha = 0.3f;
+
+  float smoothValue(float currentFiltered, float newRaw);
 
 public:
   SGP30Sensor();

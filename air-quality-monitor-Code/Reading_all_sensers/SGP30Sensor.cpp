@@ -16,7 +16,7 @@ bool SGP30Sensor::begin() {
   return true;
 }
 
-// Original simple reading method (no humidity compensation)
+// Original simple reading method (no humidity compensation, no timing)
 bool SGP30Sensor::readVOC(uint16_t &voc_ppb) {
   if (!sgp30.IAQmeasure()) {
     Serial.println("SGP30 measurement failed!");
@@ -26,28 +26,46 @@ bool SGP30Sensor::readVOC(uint16_t &voc_ppb) {
   return true;
 }
 
-// NEW: Humidity-compensated reading
 bool SGP30Sensor::readCalibratedVOC(float temperatureC, float humidityPercent,
                                     uint16_t &voc_ppb, float &voc_mg) {
-  // 1) Calculate absolute humidity, scaled for SGP30
-  uint16_t absHumidity = computeAbsoluteHumidity(temperatureC, humidityPercent);
+  unsigned long now = millis();
+  bool doFreshRead = (now - lastReadMs >= readInterval);
 
-  // 2) Pass humidity to SGP30 so it can calibrate internally
-  sgp30.setHumidity(absHumidity);
+  if (doFreshRead) {
+    // 1) Calculate absolute humidity, scaled for SGP30
+    uint16_t absHumidity = computeAbsoluteHumidity(temperatureC, humidityPercent);
+    // 2) Pass humidity to SGP30 so it can calibrate internally
+    sgp30.setHumidity(absHumidity);
 
-  // 3) Perform measurement
-  if (!sgp30.IAQmeasure()) {
-    Serial.println("SGP30 measurement failed!");
+    // 3) Perform measurement
+    if (!sgp30.IAQmeasure()) {
+      Serial.println("SGP30 measurement failed!");
+      if (!haveLastReading) return false; // no fallback
+      // fallback
+      voc_ppb = lastVOC_ppb;
+      voc_mg = lastVOC_mg;
+      return true;
+    }
+    uint16_t newVOC_ppb = sgp30.TVOC;
+
+    // 4) Convert ppb → mg/m³
+    float factor = 0.00409f; // approximate factor for MW=100 g/mol
+    float newVOC_mg = newVOC_ppb * factor;
+
+    // Update cache
+    lastVOC_ppb = newVOC_ppb;
+    lastVOC_mg  = newVOC_mg;
+    haveLastReading = true;
+    lastReadMs = now;
+  }
+
+  // Return either newly read or cached data
+  if (!haveLastReading) {
+    // No reading to return yet
     return false;
   }
-  voc_ppb = sgp30.TVOC;  // TVOC in ppb
-
-  // 4) Convert ppb → mg/m³ (assumes ~100 g/mol for average VOC)
-  //    1 ppb = 0.001 ppm, 1 ppm = 1 mg/m³ if MW=24.45 g/mol, but we approximate
-  //    A more direct approach is often: mg/m³ = VOC_ppb * 0.00409 for MW=100
-  //    (Exact formula depends on the VOC mixture)
-  float factor = 0.00409f; // approximate factor for MW=100 g/mol
-  voc_mg = voc_ppb * factor;
+  voc_ppb = lastVOC_ppb;
+  voc_mg  = lastVOC_mg;
 
   return true;
 }
@@ -55,9 +73,6 @@ bool SGP30Sensor::readCalibratedVOC(float temperatureC, float humidityPercent,
 // Helper function to compute absolute humidity per Sensirion doc
 // returns humidity in mg/m^3, scaled by 1000, so SGP30 can use setHumidity()
 uint16_t SGP30Sensor::computeAbsoluteHumidity(float temperatureC, float humidityPercent) {
-  // The well-known approximation formula from Sensirion:
-  // absolute_humidity (g/m^3) = 216.7 * (rh/100.0 * 6.112 * exp((17.62 * t)/(243.12+t)) / (273.15 + t))
-  // Then multiply by 1000 to get mg/m^3, SGP30 expects an integer in 0.01% steps
   float tK = temperatureC + 273.15f;
   float rh = humidityPercent / 100.0f;
 
@@ -69,8 +84,6 @@ uint16_t SGP30Sensor::computeAbsoluteHumidity(float temperatureC, float humidity
   float absHum_mgm3 = absHum_gm3 * 1000.0f;
 
   // SGP30 expects an unsigned 16-bit integer in 0.01% steps of humidity
-  // So we multiply mg/m^3 by 256, per Sensirion's recommended approach:
-  // https://github.com/Sensirion/arduino-sgp/blob/master/src/SensirionI2CSgp30.cpp#L106
   uint16_t absHum_sgp = (uint16_t)(absHum_mgm3 * 256.0f);
 
   return absHum_sgp;

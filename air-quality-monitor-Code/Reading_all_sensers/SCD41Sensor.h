@@ -15,14 +15,16 @@ private:
   float lastTempC = 0.0f;
   float lastHumidity = 0.0f;
 
+  // New: timing logic
+  unsigned long lastReadMs = 0;      // the last time we did a fresh read
+  const unsigned long readInterval = 5000;  // 5 seconds
+
 public:
   SCD41Sensor();
   bool begin();
 
-  // This now ALWAYS returns a reading, 
-  // either the latest or cached, if it exists
+  // Always returns a reading (fresh or cached) if available
   bool readMeasurement(uint16_t &co2, float &temperatureC, float &humidity);
-
   bool readMeasurementF(uint16_t &co2, float &temperatureC, float &temperatureF, float &humidity);
 };
 

@@ -19,7 +19,7 @@ float prevTempF = 0.0;
 float prevHumidity = 0.0;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(230400);
   while (!Serial) delay(10);
 
   Serial.println("Initializing all sensors...");
@@ -57,51 +57,7 @@ void setup() {
 
 
 void loop() {
-  Serial.println("------------------------------------");
-  // 1) SCD41: read measurement with Fahrenheit
-  uint16_t co2;
-  float tC, tF, hum;
-  if (scdSensor.readMeasurementF(co2, tC, tF, hum)) {
-    Serial.println("SCD41 Results (cached or fresh):");
-    Serial.print(" CO2 (ppm):  ");
-    Serial.println(co2);
-    Serial.print(" Temp (F):   ");
-    Serial.println(tF);
-    Serial.print(" Humidity:   ");
-    Serial.println(hum);
-  } else {
-    // Means we literally have no reading at all yet
-    Serial.println("SCD41 not yet providing data...");
-  }
-
-  // 2) SGP30: humidity compensation, get VOC in both ppb and mg/m^3
-  uint16_t voc_ppb;
-  float voc_mg;
-  if (sgpSensor.readCalibratedVOC(tC, hum, voc_ppb, voc_mg)) {
-    Serial.println("SGP30 Results (humidity-compensated):");
-    Serial.print(" VOC (ppb):   ");
-    Serial.println(voc_ppb);
-    Serial.print(" VOC (mg/m^3): ");
-    Serial.println(voc_mg, 3);  // 4 decimal places
-  } else {
-    Serial.println("Could not read from SGP30");
-  }
-
-  // 3) BMP280: read data
-  float pressure_inhg, alt_m, alt_ft;
-  if (bmpSensor.readData(pressure_inhg, alt_m, alt_ft)) {
-    Serial.println("BMP280 Results:");
-    Serial.print(" Pressure (inHg): ");
-    Serial.println(pressure_inhg, 4);
-    Serial.print(" Alt (m):         ");
-    Serial.println(alt_m, 2);
-    Serial.print(" Alt (ft):        ");
-    Serial.println(alt_ft, 2);
-  } else {
-    Serial.println("BMP280 read error");
-  }
-
-  // 4) PMSA003I: just like your existing code
+  // 1) PMSA003I: just like your existing code
   PM25_AQI_Data data;
   if (aqi.read(&data)) {
     Serial.println("PMSA003I Results:");
@@ -113,11 +69,44 @@ void loop() {
     Serial.println(data.pm100_standard);
   }
 
-  Serial.println("Version 9.0");
+  // 2) SCD41: read measurement with Fahrenheit
+  uint16_t co2;
+  float tC, tF, hum;
+  if (scdSensor.readMeasurementF(co2, tC, tF, hum)) {
+    Serial.println("SCD41 Results (cached or fresh):");
+    Serial.print(" CO2 (ppm):  ");
+    Serial.println(co2);
+    Serial.print(" Temp (F):   ");
+    Serial.println(tF);
+    Serial.print(" Humidity:   ");
+    Serial.println(hum);
+  } 
+
+  // 3) SGP30: humidity compensation, get VOC in both ppb and mg/m^3
+  uint16_t voc_ppb;
+  float voc_mg;
+  if (sgpSensor.readCalibratedVOC(tC, hum, voc_ppb, voc_mg)) {
+    Serial.println("SGP30 Results (humidity-compensated):");
+    Serial.print(" VOC (ppb):   ");
+    Serial.println(voc_ppb);
+    Serial.print(" VOC (mg/m^3): ");
+    Serial.println(voc_mg, 3);  // 4 decimal places
+  } 
+
+  // 4) BMP280: read data
+  float pressure_inhg, alt_m, alt_ft;
+  if (bmpSensor.readData(pressure_inhg, alt_m, alt_ft)) {
+    Serial.println("BMP280 Results:");
+    Serial.print(" Pressure (inHg): ");
+    Serial.println(pressure_inhg, 4);
+    Serial.print(" Alt (m):         ");
+    Serial.println(alt_m, 2);
+    Serial.print(" Alt (ft):        ");
+    Serial.println(alt_ft, 2);
+  } 
+
+  Serial.println("Version 10.1");
   Serial.println("------------------------------------");
 
-  delay(5000);  // Read every 5 seconds
+  delay(3000);  // Read every 3 seconds
 }
-
-
-//save

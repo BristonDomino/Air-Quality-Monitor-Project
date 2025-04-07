@@ -8,7 +8,8 @@ bool SCD41Sensor::begin() {
   uint16_t error;
   char errorMessage[256];
 
-  scd4x.begin(Wire, 0x62); // default I2C address
+  // Default I2C address is 0x62
+  scd4x.begin(Wire, 0x62);
 
   // Stop previously started measurement
   error = scd4x.stopPeriodicMeasurement();
@@ -35,63 +36,82 @@ bool SCD41Sensor::begin() {
 }
 
 bool SCD41Sensor::readMeasurement(uint16_t &co2, float &temperatureC, float &humidity) {
-  uint16_t error;
-  char errorMessage[256];
-  bool dataReady = false;
+  // 1) Check if we can do a fresh read based on timing
+  unsigned long now = millis();
+  bool doFreshRead = (now - lastReadMs >= readInterval);
 
-  error = scd4x.getDataReadyStatus(dataReady);
-  if (error) {
-    Serial.print("Error reading data ready status: ");
-    errorToString(error, errorMessage, sizeof(errorMessage));
-    Serial.println(errorMessage);
-    // If we can’t even check data status, return false *only if* we never had a valid reading before
-    if (!haveLastReading) return false;
-    // Otherwise, fall back to last reading
-    co2 = lastCO2;
-    temperatureC = lastTempC;
-    humidity = lastHumidity;
-    return true;
-  }
+  if (doFreshRead) {
+    // Attempt a fresh read if enough time has elapsed
+    uint16_t error;
+    char errorMessage[256];
+    bool dataReady = false;
 
-  if (dataReady) {
-    // We have fresh data, read it
-    error = scd4x.readMeasurement(co2, temperatureC, humidity);
+    // Query the sensor if new data is actually ready
+    error = scd4x.getDataReadyStatus(dataReady);
     if (error) {
-      Serial.print("Error reading measurement: ");
+      Serial.print("Error reading data ready status: ");
       errorToString(error, errorMessage, sizeof(errorMessage));
       Serial.println(errorMessage);
-      // Return false if never had a good reading before
+      // If we have never had a valid reading, fail. Else, return the last reading
       if (!haveLastReading) return false;
-      // Otherwise, fall back to last reading
       co2 = lastCO2;
       temperatureC = lastTempC;
       humidity = lastHumidity;
       return true;
     }
-    // Update our cached values
-    lastCO2 = co2;
-    lastTempC = temperatureC;
-    lastHumidity = humidity;
-    haveLastReading = true;
+
+    if (dataReady) {
+      // We have fresh data on the sensor
+      error = scd4x.readMeasurement(co2, temperatureC, humidity);
+      if (error) {
+        Serial.print("Error reading measurement: ");
+        errorToString(error, errorMessage, sizeof(errorMessage));
+        Serial.println(errorMessage);
+        // If never had a good reading, fail
+        if (!haveLastReading) return false;
+        // Otherwise return the cached data
+        co2 = lastCO2;
+        temperatureC = lastTempC;
+        humidity = lastHumidity;
+        return true;
+      }
+      // Successfully read, update cache
+      lastCO2 = co2;
+      lastTempC = temperatureC;
+      lastHumidity = humidity;
+      haveLastReading = true;
+      lastReadMs = now; // Update timestamp
+    } else {
+      // The sensor isn't ready with new data
+      // Return the cached data if we have it
+      if (!haveLastReading) {
+        return false; 
+      }
+      co2 = lastCO2;
+      temperatureC = lastTempC;
+      humidity = lastHumidity;
+      // Update timestamp anyway to avoid hammering the sensor again
+      lastReadMs = now;
+    }
   } else {
-    // No new data — fallback to the last known reading
+    // 2) We haven't reached our 5-second interval yet
+    // Return the cached data
     if (!haveLastReading) {
-      // We have never successfully read data before
+      // No reading yet to give
       return false;
     }
     co2 = lastCO2;
     temperatureC = lastTempC;
     humidity = lastHumidity;
   }
+
   return true;
 }
 
-// readMeasurementF: same logic, but also calculates Fahrenheit
 bool SCD41Sensor::readMeasurementF(uint16_t &co2, float &temperatureC, float &temperatureF, float &humidity) {
-  // Reuse the logic from readMeasurement
-  bool success = readMeasurement(co2, temperatureC, humidity);
-  if (!success) return false;
-
+  if (!readMeasurement(co2, temperatureC, humidity)) {
+    return false;
+  }
   temperatureF = temperatureC * 9.0f / 5.0f + 32.0f;
   return true;
 }

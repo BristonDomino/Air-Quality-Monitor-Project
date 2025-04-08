@@ -8,6 +8,7 @@
 class SCD41Sensor {
 private:
   SensirionI2cScd4x scd4x;
+  bool isConnected = false; // NEW: tracks whether sensor initialized successfully
 
   // Cache of the last valid reading (filtered)
   bool haveLastReading = false;
@@ -16,20 +17,20 @@ private:
   float filteredHumidity = 0.0f;
 
   // Timing logic
-  unsigned long lastReadMs = 0;      
-  const unsigned long readInterval = 5000;  // 5 seconds
+  unsigned long lastReadMs = 0;
+  const unsigned long readInterval = 5000; // 5 seconds
 
-  // Smoothing factor (0.0 - 1.0). Adjust to taste.
-  // Smaller means heavier smoothing (less noise, slower response).
-  // Example: alpha=0.2 for moderate smoothing
+  // Smoothing factor
   const float alpha = 0.2f;
-
-  // Helper to apply exponential smoothing
   float smoothValue(float currentFiltered, float newRaw);
 
 public:
   SCD41Sensor();
-  bool begin();
+  
+  // NEW: maxRetries parameter if you want repeated attempts
+  bool begin(int maxRetries = 1);
+
+  bool connected() const { return isConnected; }
 
   bool readMeasurement(uint16_t &co2, float &temperatureC, float &humidity);
   bool readMeasurementF(uint16_t &co2, float &temperatureC, float &temperatureF, float &humidity);

@@ -2,63 +2,83 @@
 
 SCD41Sensor::SCD41Sensor() : scd4x() {}
 
-bool SCD41Sensor::begin() {
+bool SCD41Sensor::begin(int maxRetries) {
   Wire.begin();
+  isConnected = false; // start off false
 
   uint16_t error;
   char errorMessage[256];
 
-  scd4x.begin(Wire, 0x62); // Default I2C address
+  for (int attempt = 1; attempt <= maxRetries; attempt++) {
+    Serial.print("SCD41: Attempting to initialize (Attempt ");
+    Serial.print(attempt);
+    Serial.print("/");
+    Serial.print(maxRetries);
+    Serial.println(")...");
 
-  // Stop previously started measurement
-  error = scd4x.stopPeriodicMeasurement();
-  if (error) {
-    Serial.print("Error stopping periodic measurement: ");
-    errorToString(error, errorMessage, sizeof(errorMessage));
-    Serial.println(errorMessage);
-    return false;
+    scd4x.begin(Wire, 0x62); // Default I2C address
+
+    // Stop previously started measurement
+    error = scd4x.stopPeriodicMeasurement();
+    if (error) {
+      Serial.print("Error stopping periodic measurement: ");
+      errorToString(error, errorMessage, sizeof(errorMessage));
+      Serial.println(errorMessage);
+      delay(200); // short delay before retry
+      continue;   // try again
+    }
+
+    delay(500);
+
+    // Start periodic measurement
+    error = scd4x.startPeriodicMeasurement();
+    if (error) {
+      Serial.print("Error starting periodic measurement: ");
+      errorToString(error, errorMessage, sizeof(errorMessage));
+      Serial.println(errorMessage);
+      delay(200);
+      continue;
+    }
+
+    // If we reach here, initialization succeeded
+    isConnected = true;
+    Serial.println("SCD-41 sensor initialized successfully!");
+    break;
   }
 
-  delay(500);
-
-  // Start periodic measurement
-  error = scd4x.startPeriodicMeasurement();
-  if (error) {
-    Serial.print("Error starting periodic measurement: ");
-    errorToString(error, errorMessage, sizeof(errorMessage));
-    Serial.println(errorMessage);
-    return false;
+  if (!isConnected) {
+    Serial.println("SCD41: Failed to initialize after retries.");
   }
-
-  Serial.println("SCD-41 sensor initialized successfully!");
-  return true;
+  return isConnected;
 }
 
-// Helper to apply exponential smoothing
 float SCD41Sensor::smoothValue(float currentFiltered, float newRaw) {
   return currentFiltered + alpha * (newRaw - currentFiltered);
 }
 
 bool SCD41Sensor::readMeasurement(uint16_t &co2_out, float &tempC_out, float &hum_out) {
+  // If the sensor never connected, no point in reading
+  if (!isConnected) {
+    return false;
+  }
+
   unsigned long now = millis();
   bool doFreshRead = (now - lastReadMs >= readInterval);
 
   if (doFreshRead) {
-    // Attempt a fresh read if enough time has passed
     uint16_t error;
     char errorMessage[256];
     bool dataReady = false;
 
     error = scd4x.getDataReadyStatus(dataReady);
     if (error) {
-      Serial.print("Error reading data ready status: ");
+      Serial.print("SCD41: Error reading data ready status: ");
       errorToString(error, errorMessage, sizeof(errorMessage));
       Serial.println(errorMessage);
       if (!haveLastReading) return false;
-      // fallback to filtered
-      co2_out    = (uint16_t)filteredCO2;
-      tempC_out  = filteredTempC;
-      hum_out    = filteredHumidity;
+      co2_out   = (uint16_t)filteredCO2;
+      tempC_out = filteredTempC;
+      hum_out   = filteredHumidity;
       return true;
     }
 
@@ -68,19 +88,18 @@ bool SCD41Sensor::readMeasurement(uint16_t &co2_out, float &tempC_out, float &hu
 
       error = scd4x.readMeasurement(rawCO2, rawTempC, rawHum);
       if (error) {
-        Serial.print("Error reading measurement: ");
+        Serial.print("SCD41: Error reading measurement: ");
         errorToString(error, errorMessage, sizeof(errorMessage));
         Serial.println(errorMessage);
         if (!haveLastReading) return false;
-        // fallback
-        co2_out    = (uint16_t)filteredCO2;
-        tempC_out  = filteredTempC;
-        hum_out    = filteredHumidity;
+        co2_out   = (uint16_t)filteredCO2;
+        tempC_out = filteredTempC;
+        hum_out   = filteredHumidity;
         return true;
       }
-      // We got fresh data, apply smoothing
+      // Fresh data
       if (!haveLastReading) {
-        // First reading: initialize filtered to raw
+        // First reading
         filteredCO2      = (float)rawCO2;
         filteredTempC    = rawTempC;
         filteredHumidity = rawHum;
@@ -91,17 +110,16 @@ bool SCD41Sensor::readMeasurement(uint16_t &co2_out, float &tempC_out, float &hu
         filteredTempC    = smoothValue(filteredTempC, rawTempC);
         filteredHumidity = smoothValue(filteredHumidity, rawHum);
       }
-
       lastReadMs = now;
     } else {
-      // No new sensor data, do nothing special except update lastReadMs
+      // Sensor not ready, just update timestamp to avoid hammering
       lastReadMs = now;
     }
   }
 
-  // Return the (possibly updated) filtered data
+  // Return the smoothed data
   if (!haveLastReading) {
-    return false; // never had a valid read
+    return false;
   }
   co2_out   = (uint16_t)filteredCO2;
   tempC_out = filteredTempC;
@@ -113,7 +131,6 @@ bool SCD41Sensor::readMeasurementF(uint16_t &co2_out, float &tempC_out, float &t
   if (!readMeasurement(co2_out, tempC_out, hum_out)) {
     return false;
   }
-  // Convert the *filtered* Celsius to Fahrenheit
   tempF_out = tempC_out * 9.0f / 5.0f + 32.0f;
   return true;
 }

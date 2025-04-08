@@ -8,7 +8,11 @@
 class SCD41Sensor {
 private:
   SensirionI2cScd4x scd4x;
-  bool isConnected = false; // NEW: tracks whether sensor initialized successfully
+  bool isConnected = false;
+
+  // Error tracking
+  int consecutiveErrorCount = 0;    // how many times in a row we've had an I2C error
+  const int maxConsecutiveErrors = 3; // after 3 consecutive errors, try bus recovery
 
   // Cache of the last valid reading (filtered)
   bool haveLastReading = false;
@@ -24,12 +28,12 @@ private:
   const float alpha = 0.2f;
   float smoothValue(float currentFiltered, float newRaw);
 
+  // Attempt to recover the I2C bus and re-init sensor
+  void recoverI2CBus();
+
 public:
   SCD41Sensor();
-  
-  // NEW: maxRetries parameter if you want repeated attempts
   bool begin(int maxRetries = 1);
-
   bool connected() const { return isConnected; }
 
   bool readMeasurement(uint16_t &co2, float &temperatureC, float &humidity);

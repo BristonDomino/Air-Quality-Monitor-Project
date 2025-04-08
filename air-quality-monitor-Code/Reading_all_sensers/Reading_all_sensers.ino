@@ -107,5 +107,5 @@ void loop() {
   Serial.println("Version 0.11.0");
   Serial.println("------------------------------------");
 
-  delay(3000);  // Read every 3 seconds
+  delay(2500);  // Read every 3 seconds
 }

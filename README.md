@@ -47,5 +47,6 @@ Using **temperature and humidity** from the SCD-41 sensor, the accuracy of VOC m
 ## ⚠️ **Note:**
 This project is actively under development, with regular updates expected.
 
-## 📝 **License:**
-MIT (recommended)
+## 🎥 Demo Video
+[![Watch the demo](https://i.ytimg.com/vi/0X3jwfKh4xQ/oardefault.jpg?sqp=-oaymwEoCJUDENAFSFqQAgHyq4qpAxcIARUAAIhC2AEB4gEKCBgQAhgGOAFAAQ==&rs=AOn4CLDY-LD2IuJT5zJfDD_5cZTqQ5F7gA)](https://youtube.com/shorts/0X3jwfKh4xQ?feature=share)
+

@@ -5,10 +5,10 @@ This project involves building an advanced portable air quality monitor using a 
 ## 📸 Project Images
 
 ### Sensor Wiring Setup
-![Sensor Wiring](https://github.com/BristonDomino/Air-Quality-Monitor-Project/blob/main/All%20of%20the%20current%20wiring%20and%20board.jpg?raw=true)
+![Sensor Wiring](https://github.com/BristonDomino/Air-Quality-Monitor-Project/blob/main/All%20of%20the%20current%20wiring%20and%20board.jpg)
 
 ### Arduine IDE and Output of Sensors
-![Arduine IDE and Output of Sensors](https://github.com/BristonDomino/Air-Quality-Monitor-Project/blob/main/All%20of%20the%20current%20wiring%20and%20board.jpg?raw=true)
+![Arduine IDE and Output of Sensors](https://github.com/BristonDomino/Air-Quality-Monitor-Project/blob/main/Arduine%20IDE%20and%20Output%20of%20Sensors%20.png)
 
 ## 📌 **Current Features:**
 - **Metro M4 Grand Central board** (Adafruit)

@@ -22,11 +22,11 @@ bool BMP280Sensor::begin(uint8_t addr, int maxRetries) {
       continue;
     }
 
-    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
-                    Adafruit_BMP280::SAMPLING_X2,
-                    Adafruit_BMP280::SAMPLING_X16,
-                    Adafruit_BMP280::FILTER_X2,
-                    Adafruit_BMP280::STANDBY_MS_500);
+    // bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
+    //                 Adafruit_BMP280::SAMPLING_X2,
+    //                 Adafruit_BMP280::SAMPLING_X16,
+    //                 Adafruit_BMP280::FILTER_X2,
+    //                 Adafruit_BMP280::STANDBY_MS_500);
     //
     Serial.println("BMP280 sensor initialized!");
     isConnected = true;

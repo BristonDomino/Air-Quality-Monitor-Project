@@ -3,11 +3,13 @@
 #include "SCD41Sensor.h"
 #include "SGP30Sensor.h"
 #include "BMP280Sensor.h"
+#include "ScreenDisplay.h"
 
 // Sensor objects
 Adafruit_PM25AQI aqi = Adafruit_PM25AQI();
 SCD41Sensor scdSensor;
 SGP30Sensor sgpSensor;
+ScreenDisplay screen;
 
 // Create a BMP280 sensor object, optionally specifying the local sea-level pressure in hPa
 BMP280Sensor bmpSensor(1013.25f);
@@ -20,7 +22,7 @@ float prevHumidity = 0.0;
 
 void setup() {
 
-  Serial.begin(115200);
+  Serial.begin(230400);
   while (!Serial) delay(10);
 
   Serial.println("Initializing all sensors...");
@@ -38,7 +40,7 @@ void setup() {
   }
 
   // SGP30
-  if (!sgpSensor.begin(3)) {
+  if (!sgpSensor.begin(2)) {
     Serial.println("SGP30 not connected, continuing without it.");
   }
 
@@ -46,6 +48,9 @@ void setup() {
   if (!bmpSensor.begin(0x77, 3)) {
     Serial.println("BMP280 isn't connected, but continuing anyway...");
   }
+
+  // screen
+  screen.begin();
 
   Serial.println("All sensors initialized successfully!");
 }
@@ -66,14 +71,14 @@ void loop() {
 
   // 2) SCD41: read measurement with Fahrenheit
   uint16_t co2;
-  float tC, tF, hum;
+  float tempC, tempF, hum;
   if (scdSensor.connected()) {
-    if (scdSensor.readMeasurementF(co2, tC, tF, hum)) {
+    if (scdSensor.readMeasurementF(co2, tempC, tempF, hum)) {
       Serial.println("SCD41 Results (cached or fresh):");
       Serial.print(" CO2 (ppm):  ");
       Serial.println(co2);
       Serial.print(" Temp (F):   ");
-      Serial.println(tF);
+      Serial.println(tempF);
       Serial.print(" Humidity:   ");
       Serial.println(hum);
     }
@@ -82,7 +87,7 @@ void loop() {
   // 3) SGP30: humidity compensation, get VOC in both ppb and mg/m^3
   uint16_t voc_ppb;
   float voc_mg;
-  if (sgpSensor.readCalibratedVOC(tC, hum, voc_ppb, voc_mg)) {
+  if (sgpSensor.readCalibratedVOC(tempC, hum, voc_ppb, voc_mg)) {
     Serial.println("SGP30 Results (humidity-compensated):");
     Serial.print(" VOC (ppb):   ");
     Serial.println(voc_ppb);
@@ -104,7 +109,21 @@ void loop() {
     }
   }
 
-  Serial.println("Version 0.11.0");
+  SensorReadings sr;
+  sr.pm1 = data.pm10_standard;    // PM 1.0
+  sr.pm25 = data.pm25_standard;   // PM 2.5
+  sr.pm10 = data.pm100_standard;  // PM 10
+  sr.co2 = co2;
+  sr.tempF = tempF;
+  sr.humidity = hum;
+  sr.voc_ppb = voc_ppb;
+  sr.voc_mg = voc_mg;
+  sr.pressure_inhg = pressure_inhg;
+  sr.altitude_m = alt_m;  // metres from BMP280
+
+  screen.render(sr);  // <-- one call, that’s all
+
+  Serial.println("Version 0.12.0");
   Serial.println("------------------------------------");
 
   delay(2500);  // Read every 3 seconds

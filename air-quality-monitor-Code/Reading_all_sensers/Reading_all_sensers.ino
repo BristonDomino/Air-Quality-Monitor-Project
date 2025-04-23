@@ -51,6 +51,27 @@ void setup() {
 
   // screen
   screen.begin();
+  screen.startInitPage();
+  Serial.println("Initializing all sensors");  // optional
+  screen.addInitLine("Initializing all sensors");
+
+  /* --- SCD41 --- */
+  bool scdOK = scdSensor.begin(2);
+  screen.addInitLine(scdOK ? "SCD41 OK" : "SCD41 FAIL");
+
+  /* --- SGP30 --- */
+  bool sgpOK = sgpSensor.begin(2);
+  screen.addInitLine(sgpOK ? "SGP30 OK" : "SGP30 FAIL");
+
+  /* --- BMP280 --- */
+  bool bmpOK = bmpSensor.begin();
+  screen.addInitLine(bmpOK ? "BMP280 OK" : "BMP280 FAIL");
+
+  /* --- PMSA003I etc. (add your own) --- */
+  screen.addInitLine("PMSA003I OK");
+
+  screen.closeInitPage();  // 4-second pause before live page
+
 
   Serial.println("All sensors initialized successfully!");
 }

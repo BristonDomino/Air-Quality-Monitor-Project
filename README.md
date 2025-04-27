@@ -8,7 +8,7 @@ This project involves building an advanced portable air quality monitor using a 
 ![Sensor Wiring](https://github.com/BristonDomino/Air-Quality-Monitor-Project/blob/main/All%20of%20the%20current%20wiring%20and%20board.jpg)
 
 ### Arduine IDE and Output of Sensors
-![Arduine IDE and Output of Sensors](https://github.com/BristonDomino/Air-Quality-Monitor-Project/blob/main/Arduine%20IDE%20and%20Output%20of%20Sensors%20.png)
+![Arduine IDE and Output of Sensors](https://github.com/BristonDomino/Air-Quality-Monitor-Project/blob/main/Arduine%20IDE%20and%20Output%20of%20Sensors.png?raw=true)
 
 ## 📌 **Current Features:**
 - **Metro M4 Grand Central board** (Adafruit)
@@ -47,6 +47,6 @@ Using **temperature and humidity** from the SCD-41 sensor, the accuracy of VOC m
 ## ⚠️ **Note:**
 This project is actively under development, with regular updates expected.
 
-## 🎥 Demo Video
+## 🎥 Demo Video of Output to Arduino IDE
 [![Watch the demo](https://i.ytimg.com/vi/0X3jwfKh4xQ/oardefault.jpg?sqp=-oaymwEoCJUDENAFSFqQAgHyq4qpAxcIARUAAIhC2AEB4gEKCBgQAhgGOAFAAQ==&rs=AOn4CLDY-LD2IuJT5zJfDD_5cZTqQ5F7gA)](https://youtube.com/shorts/0X3jwfKh4xQ?feature=share)
 

@@ -23,7 +23,7 @@ float prevHumidity = 0.0;
 void setup() {
 
   Serial.begin(230400);
-  while (!Serial) delay(10);
+ // while (!Serial) delay(10);
 
   Serial.println("Initializing all sensors...");
 
